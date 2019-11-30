@@ -155,10 +155,10 @@ export default class Carousel extends Component {
             console.warn('react-native-snap-carousel: It is recommended to use at least version 0.44 of React Native with the plugin');
         }
         if (!props.vertical && (!props.sliderWidth || !props.itemWidth)) {
-            console.error('react-native-snap-carousel: You need to specify both `sliderWidth` and `itemWidth` for horizontal carousels');
+            console.warn('react-native-snap-carousel: You need to specify both `sliderWidth` and `itemWidth` for horizontal carousels');
         }
         if (props.vertical && (!props.sliderHeight || !props.itemHeight)) {
-            console.error('react-native-snap-carousel: You need to specify both `sliderHeight` and `itemHeight` for vertical carousels');
+            console.warn('react-native-snap-carousel: You need to specify both `sliderHeight` and `itemHeight` for vertical carousels');
         }
         if (props.apparitionDelay && !IS_IOS && !props.useScrollView) {
             console.warn('react-native-snap-carousel: Using `apparitionDelay` on Android is not recommended since it can lead to rendering issues');
@@ -167,7 +167,7 @@ export default class Carousel extends Component {
             console.warn('react-native-snap-carousel: Props `customAnimationType` and `customAnimationOptions` have been renamed to `activeAnimationType` and `activeAnimationOptions`');
         }
         if (props.onScrollViewScroll) {
-            console.error('react-native-snap-carousel: Prop `onScrollViewScroll` has been removed. Use `onScroll` instead');
+            console.warn('react-native-snap-carousel: Prop `onScrollViewScroll` has been removed. Use `onScroll` instead');
         }
     }
 
@@ -211,23 +211,23 @@ export default class Carousel extends Component {
         }
     }
 
-    componentDidUpdate (prevProps) {
+    componentWillReceiveProps (nextProps) {
         const { interpolators } = this.state;
-        const { firstItem, itemHeight, itemWidth, scrollEnabled, sliderHeight, sliderWidth } = this.props;
-        const itemsLength = this._getCustomDataLength(this.props);
+        const { firstItem, itemHeight, itemWidth, scrollEnabled, sliderHeight, sliderWidth } = nextProps;
+        const itemsLength = this._getCustomDataLength(nextProps);
 
         if (!itemsLength) {
             return;
         }
 
-        const nextFirstItem = this._getFirstItem(firstItem, this.props);
+        const nextFirstItem = this._getFirstItem(firstItem, nextProps);
         let nextActiveItem = this._activeItem || this._activeItem === 0 ? this._activeItem : nextFirstItem;
 
-        const hasNewSliderWidth = sliderWidth && sliderWidth !== prevProps.sliderWidth;
-        const hasNewSliderHeight = sliderHeight && sliderHeight !== prevProps.sliderHeight;
-        const hasNewItemWidth = itemWidth && itemWidth !== prevProps.itemWidth;
-        const hasNewItemHeight = itemHeight && itemHeight !== prevProps.itemHeight;
-        const hasNewScrollEnabled = scrollEnabled !== prevProps.scrollEnabled;
+        const hasNewSliderWidth = sliderWidth && sliderWidth !== this.props.sliderWidth;
+        const hasNewSliderHeight = sliderHeight && sliderHeight !== this.props.sliderHeight;
+        const hasNewItemWidth = itemWidth && itemWidth !== this.props.itemWidth;
+        const hasNewItemHeight = itemHeight && itemHeight !== this.props.itemHeight;
+        const hasNewScrollEnabled = scrollEnabled !== this.props.scrollEnabled;
 
         // Prevent issues with dynamically removed items
         if (nextActiveItem > itemsLength - 1) {
@@ -244,7 +244,7 @@ export default class Carousel extends Component {
             this._activeItem = nextActiveItem;
             this._previousItemsLength = itemsLength;
 
-            this._initPositionsAndInterpolators(this.props);
+            this._initPositionsAndInterpolators(nextProps);
 
             // Handle scroll issue when dynamically removing items (see #133)
             // This also fixes first item's active state on Android
@@ -262,8 +262,8 @@ export default class Carousel extends Component {
             this._snapToItem(nextFirstItem, false, true, false, false);
         }
 
-        if (this.props.onScroll !== prevProps.onScroll) {
-          this._setScrollHandler(this.props);
+        if (nextProps.onScroll !== this.props.onScroll) {
+            this._setScrollHandler(nextProps);
         }
     }
 
@@ -292,33 +292,33 @@ export default class Carousel extends Component {
     }
 
     _setScrollHandler(props) {
-      // Native driver for scroll events
-      const scrollEventConfig = {
-        listener: this._onScroll,
-        useNativeDriver: true,
-      };
-      this._scrollPos = new Animated.Value(0);
-      const argMapping = props.vertical
-        ? [{ nativeEvent: { contentOffset: { y: this._scrollPos } } }]
-        : [{ nativeEvent: { contentOffset: { x: this._scrollPos } } }];
+        // Native driver for scroll events
+        const scrollEventConfig = {
+            listener: this._onScroll,
+            useNativeDriver: true,
+        };
+        this._scrollPos = new Animated.Value(0);
+        const argMapping = props.vertical
+            ? [{ nativeEvent: { contentOffset: { y: this._scrollPos } } }]
+            : [{ nativeEvent: { contentOffset: { x: this._scrollPos } } }];
 
-      if (props.onScroll && Array.isArray(props.onScroll._argMapping)) {
-        // Because of a react-native issue https://github.com/facebook/react-native/issues/13294
-        argMapping.pop();
-        const [ argMap ] = props.onScroll._argMapping;
-        if (argMap && argMap.nativeEvent && argMap.nativeEvent.contentOffset) {
-          // Shares the same animated value passed in props
-          this._scrollPos =
-            argMap.nativeEvent.contentOffset.x ||
-            argMap.nativeEvent.contentOffset.y ||
-            this._scrollPos;
+        if (props.onScroll && Array.isArray(props.onScroll._argMapping)) {
+            // Because of a react-native issue https://github.com/facebook/react-native/issues/13294
+            argMapping.pop();
+            const [ argMap ] = props.onScroll._argMapping;
+            if (argMap && argMap.nativeEvent && argMap.nativeEvent.contentOffset) {
+                // Shares the same animated value passed in props
+                this._scrollPos =
+                    argMap.nativeEvent.contentOffset.x ||
+                    argMap.nativeEvent.contentOffset.y ||
+                    this._scrollPos;
+            }
+            argMapping.push(...props.onScroll._argMapping);
         }
-        argMapping.push(...props.onScroll._argMapping);
-      }
-      this._onScrollHandler = Animated.event(
-        argMapping,
-        scrollEventConfig
-      );
+        this._onScrollHandler = Animated.event(
+            argMapping,
+            scrollEventConfig
+        );
     }
 
     _needsScrollView () {
@@ -819,6 +819,10 @@ export default class Carousel extends Component {
         if (typeof onScroll === "function" && event) {
             onScroll(event);
         }
+
+        if (this.props.onScrollCallback){
+            this.props.onScrollCallback(event);
+        }
     }
 
     _onStartShouldSetResponderCapture (event) {
@@ -836,7 +840,7 @@ export default class Carousel extends Component {
 
         // `onTouchStart` is fired even when `scrollEnabled` is set to `false`
         if (this._getScrollEnabled() !== false && this._autoplaying) {
-            this.pauseAutoPlay();
+            this.stopAutoplay();
         }
 
         if (onTouchStart) {
@@ -847,7 +851,7 @@ export default class Carousel extends Component {
     _onTouchEnd () {
         const { onTouchEnd } = this.props
 
-        if (this._getScrollEnabled() !== false && this._autoplay && !this._autoplaying) {
+        if (this._getScrollEnabled() !== false && autoplay && !this._autoplaying) {
             // This event is buggy on Android, so a fallback is provided in _onScrollEnd()
             this.startAutoplay();
         }
@@ -902,7 +906,7 @@ export default class Carousel extends Component {
     }
 
     _onScrollEnd (event) {
-        const { autoplayDelay, enableSnap } = this.props;
+        const { autoplay, autoplayDelay, enableSnap } = this.props;
 
         if (this._ignoreNextMomentum) {
             // iOS fix
@@ -919,7 +923,7 @@ export default class Carousel extends Component {
 
         // The touchEnd event is buggy on Android, so this will serve as a fallback whenever needed
         // https://github.com/facebook/react-native/issues/9439
-        if (this._autoplay && !this._autoplaying) {
+        if (autoplay && !this._autoplaying) {
             clearTimeout(this._enableAutoplayTimeout);
             this._enableAutoplayTimeout = setTimeout(() => {
                 this.startAutoplay();
@@ -1036,7 +1040,7 @@ export default class Carousel extends Component {
 
         if (enableMomentum) {
             // iOS fix, check the note in the constructor
-            if (!initial) {
+            if (IS_IOS && !initial) {
                 this._ignoreNextMomentum = true;
             }
 
@@ -1081,7 +1085,6 @@ export default class Carousel extends Component {
 
     startAutoplay () {
         const { autoplayInterval, autoplayDelay } = this.props;
-        this._autoplay = true;
 
         if (this._autoplaying) {
             return;
@@ -1098,14 +1101,9 @@ export default class Carousel extends Component {
         }, autoplayDelay);
     }
 
-    pauseAutoPlay () {
-        this._autoplaying = false;
-        clearInterval(this._autoplayInterval);        
-    }
-
     stopAutoplay () {
-        this._autoplay = false;
-        this.pauseAutoPlay();
+        this._autoplaying = false;
+        clearInterval(this._autoplayInterval);
     }
 
     snapToItem (index, animated = true, fireCallback = true) {
@@ -1304,6 +1302,8 @@ export default class Carousel extends Component {
             // extraData: this.state,
             renderItem: this._renderItem,
             numColumns: 1,
+            getItemLayout: undefined, // see #193
+            initialScrollIndex: undefined, // see #193
             keyExtractor: keyExtractor || this._getKeyExtractor
         } : {};
 
